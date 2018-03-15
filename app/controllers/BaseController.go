@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"github.com/leanote/leanote/app/info"
+	"github.com/leanote/leanote/app/lea/i18n"
 	"github.com/revel/revel"
 	"gopkg.in/mgo.v2/bson"
 	//	. "github.com/leanote/leanote/app/lea"
@@ -17,6 +18,11 @@ import (
 // 公用Controller, 其它Controller继承它
 type BaseController struct {
 	*revel.Controller
+}
+
+// 覆盖revel.Message
+func (c *BaseController) Message(message string, args ...interface{}) (value string) {
+	return i18n.Message(c.Request.Locale, message, args...)
 }
 
 func (c BaseController) GetUserId() string {
@@ -174,27 +180,31 @@ func (c BaseController) GetTotalPage(page, count int) int {
 
 //-------------
 func (c BaseController) E404() revel.Result {
-	c.RenderArgs["title"] = "404"
+	c.ViewArgs["title"] = "404"
 	return c.NotFound("", nil)
 }
 
 // 设置本地
 func (c BaseController) SetLocale() string {
 	locale := string(c.Request.Locale) // zh-CN
+	// lang := locale
+	// if strings.Contains(locale, "-") {
+	// 	pos := strings.Index(locale, "-")
+	// 	lang = locale[0:pos]
+	// }
+	// if lang != "zh" && lang != "en" {
+	// 	lang = "en"
+	// }
 	lang := locale
-	if strings.Contains(locale, "-") {
-		pos := strings.Index(locale, "-")
-		lang = locale[0:pos]
+	if !i18n.HasLang(locale) {
+		lang = i18n.GetDefaultLang()
 	}
-	if lang != "zh" && lang != "en" {
-		lang = "en"
-	}
-	c.RenderArgs["locale"] = lang
-	c.RenderArgs["siteUrl"] = configService.GetSiteUrl()
+	c.ViewArgs["locale"] = lang
+	c.ViewArgs["siteUrl"] = configService.GetSiteUrl()
 
-	c.RenderArgs["blogUrl"] = configService.GetBlogUrl()
-	c.RenderArgs["leaUrl"] = configService.GetLeaUrl()
-	c.RenderArgs["noteUrl"] = configService.GetNoteUrl()
+	c.ViewArgs["blogUrl"] = configService.GetBlogUrl()
+	c.ViewArgs["leaUrl"] = configService.GetLeaUrl()
+	c.ViewArgs["noteUrl"] = configService.GetNoteUrl()
 
 	return lang
 }
@@ -202,9 +212,9 @@ func (c BaseController) SetLocale() string {
 // 设置userInfo
 func (c BaseController) SetUserInfo() info.User {
 	userInfo := c.GetUserInfo()
-	c.RenderArgs["userInfo"] = userInfo
+	c.ViewArgs["userInfo"] = userInfo
 	if userInfo.Username == configService.GetAdminUsername() {
-		c.RenderArgs["isAdmin"] = true
+		c.ViewArgs["isAdmin"] = true
 	}
 	return userInfo
 }
@@ -220,11 +230,11 @@ func (c BaseController) RenderTemplateStr(templatePath string) string {
 
 	tpl := &revel.RenderTemplateResult{
 		Template:   template,
-		RenderArgs: c.RenderArgs, // 把args给它
+		ViewArgs: c.ViewArgs, // 把args给它
 	}
 
 	var buffer bytes.Buffer
-	tpl.Template.Render(&buffer, c.RenderArgs)
+	tpl.Template.Render(&buffer, c.ViewArgs)
 	return buffer.String()
 }
 
@@ -253,5 +263,5 @@ func (c BaseController) RenderRe(re info.Re) revel.Result {
 	if strings.HasPrefix(re.Msg, "???") {
 		re.Msg = oldMsg
 	}
-	return c.RenderJson(re)
+	return c.RenderJSON(re)
 }

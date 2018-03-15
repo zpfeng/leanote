@@ -24,7 +24,7 @@ type Attach struct {
 // 上传附件
 func (c Attach) UploadAttach(noteId string) revel.Result {
 	re := c.uploadAttach(noteId)
-	return c.RenderJson(re)
+	return c.RenderJSON(re)
 }
 func (c Attach) uploadAttach(noteId string) (re info.Re) {
 	var fileId = ""
@@ -46,14 +46,17 @@ func (c Attach) uploadAttach(noteId string) (re info.Re) {
 		return re
 	}
 
-	file, handel, err := c.Request.FormFile("file")
-	if err != nil {
-		return re
-	}
-	defer file.Close()
+	var data []byte
+	c.Params.Bind(&data, "file")
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
+	// file, handel, err := c.Request.FormFile("file")
+	// if err != nil {
+	// 	return re
+	// }
+	// defer file.Close()
+
+	// data, err := ioutil.ReadAll(file)
+	if data == nil || len(data) == 0 {
 		return re
 	}
 	// > 5M?
@@ -67,16 +70,21 @@ func (c Attach) uploadAttach(noteId string) (re info.Re) {
 	}
 
 	// 生成上传路径
-	filePath := "files/" + c.GetUserId() + "/attachs"
+	//	filePath := "files/" + c.GetUserId() + "/attachs"
+	newGuid := NewGuid()
+	filePath := "files/" + GetRandomFilePath(c.GetUserId(), newGuid) + "/attachs"
 	dir := revel.BasePath + "/" + filePath
-	err = os.MkdirAll(dir, 0755)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return re
 	}
+
+	handel := c.Params.Files["file"][0]
+
 	// 生成新的文件名
 	filename := handel.Filename
 	_, ext := SplitFilename(filename) // .doc
-	filename = NewGuid() + ext
+	filename = newGuid + ext
 	toPath := dir + "/" + filename
 	err = ioutil.WriteFile(toPath, data, 0777)
 	if err != nil {
@@ -116,7 +124,7 @@ func (c Attach) uploadAttach(noteId string) (re info.Re) {
 func (c Attach) DeleteAttach(attachId string) revel.Result {
 	re := info.NewRe()
 	re.Ok, re.Msg = attachService.DeleteAttach(attachId, c.GetUserId())
-	return c.RenderJson(re)
+	return c.RenderJSON(re)
 }
 
 // get all attachs by noteId
@@ -124,7 +132,7 @@ func (c Attach) GetAttachs(noteId string) revel.Result {
 	re := info.NewRe()
 	re.Ok = true
 	re.List = attachService.ListAttachs(noteId, c.GetUserId())
-	return c.RenderJson(re)
+	return c.RenderJSON(re)
 }
 
 // 下载附件
@@ -165,10 +173,16 @@ func (c Attach) DownloadAll(noteId string) revel.Result {
 		filename = "all.tar.gz"
 	}
 
+	dir := revel.BasePath + "/files/attach_all"
+
+	if !MkdirAll(dir) {
+		return c.RenderText("error")
+	}
+
 	// file write
-	fw, err := os.Create(revel.BasePath + "/files/" + filename)
+	fw, err := os.Create(dir + "/" + filename)
 	if err != nil {
-		return c.RenderText("")
+		return c.RenderText("error")
 	}
 	// defer fw.Close() // 不需要关闭, 还要读取给用户下载
 

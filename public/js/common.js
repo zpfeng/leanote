@@ -212,7 +212,7 @@ function _ajaxCallback(ret, successFunc, failureFunc) {
 		// 是否是NOTELOGIN
 		if(ret && typeof ret == "object") {
 			if(ret.Msg == "NOTLOGIN") {
-				alert("你还没有登录, 请先登录!");
+				alert(getMsg("Please sign in firstly!"));
 				return;
 			}
 		}
@@ -345,22 +345,6 @@ function getVendorPrefix() {
 
 //-----------------
 
-// 切换编辑器时要修改tabIndex
-function editorIframeTabindex(index) {
-	var $i = $("#editorContent");
-	// var $i = $("#editorContent_ifr");
-	// if($i.size() == 0) {
-		$i.attr("tabindex", index);
-		setTimeout(function() {
-			$i.attr("tabindex", index);
-		}, 500);
-		setTimeout(function() {
-			$i.attr("tabindex", index);
-		}, 1000);
-	// } else {
-		// $i.attr("tabindex", index);
-	// }
-}
 //切换编辑器
 LEA.isM = false;
 LEA.isMarkdownEditor = function() {
@@ -374,18 +358,13 @@ function switchEditor(isMarkdown) {
 		$("#mdEditor").css("z-index", 1).hide();
 		
 		// 刚开始没有
-		editorIframeTabindex(2);
-		$("#wmd-input").attr("tabindex", 3);
 		$("#leanoteNav").show();
 	} else {
 		$("#mdEditor").css("z-index", 3).show();
 		
-		editorIframeTabindex(3);
-		$("#wmd-input").attr("tabindex", 2);
 		$("#leanoteNav").hide();
 	}
 }
-
 
 // editor 设置内容
 // 可能是tinymce还没有渲染成功
@@ -446,6 +425,7 @@ function setEditorContent(content, isMarkdown, preview, callback) {
 	*/
 		if(MD) {
 			MD.setContent(content);
+			MD.clearUndo && MD.clearUndo();
 			callback && callback();
 		} else {
 			clearIntervalForSetContent = setTimeout(function() {
@@ -743,8 +723,8 @@ function getObjectId() {
 
 //-----------------------------------------
 function resizeEditor(second) {
+	LEA.isM && MD && MD.resize && MD.resize();
 	return;
-	
 	var ifrParent = $("#editorContent_ifr").parent();
     ifrParent.css("overflow", "auto");
     var height = $("#editorContent").height();
@@ -881,6 +861,9 @@ function setCookie(c_name, value, expiredays) {
 	document.cookie = c_name+ "=" + escape(value) + ((expiredays==null) ? "" : ";expires="+exdate.toGMTString()) + 'path=/note';
 }
 function logout() {
+	Note.curChangedSaveIt(true);
+	LEA.isLogout = true;
+
 	setCookie("LEANOTE_SESSION", '', -1);
 	location.href = UrlPrefix + "/logout?id=1";
 }

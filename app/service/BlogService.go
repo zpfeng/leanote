@@ -518,7 +518,7 @@ func (this *BlogService) fixUserBlog(userBlog *info.UserBlog) {
 	// Logo路径问题, 有些有http: 有些没有
 	if userBlog.Logo != "" && !strings.HasPrefix(userBlog.Logo, "http") {
 		userBlog.Logo = strings.Trim(userBlog.Logo, "/")
-		userBlog.Logo = configService.GetSiteUrl() + "/" + userBlog.Logo
+		userBlog.Logo = "/" + userBlog.Logo
 	}
 
 	if userBlog.SortField == "" {
@@ -673,19 +673,18 @@ func (this *BlogService) LikeBlog(noteId, userId string) (ok bool, isLike bool) 
 
 	noteIdO := bson.ObjectIdHex(noteId)
 	userIdO := bson.ObjectIdHex(userId)
-	var n int
 	if !db.Has(db.BlogLikes, bson.M{"NoteId": noteIdO, "UserId": userIdO}) {
-		n = 1
 		// 添加之
 		db.Insert(db.BlogLikes, info.BlogLike{LikeId: bson.NewObjectId(), NoteId: noteIdO, UserId: userIdO, CreatedTime: time.Now()})
 		isLike = true
 	} else {
 		// 已点过, 那么删除之
-		n = -1
 		db.Delete(db.BlogLikes, bson.M{"NoteId": noteIdO, "UserId": userIdO})
 		isLike = false
 	}
-	ok = db.Update(db.Notes, bson.M{"_id": noteIdO}, bson.M{"$inc": bson.M{"LikeNum": n}})
+	
+	count := db.Count(db.BlogLikes, bson.M{"NoteId": noteIdO})
+	ok = db.UpdateByQI(db.Notes, bson.M{"_id": noteIdO}, bson.M{"LikeNum": count})
 
 	return
 }
@@ -919,7 +918,7 @@ func (this *BlogService) UpateCateUrlTitle(userId string, cateId, urlTitle strin
 			"UrlTitle": "",
 		})
 	*/
-	url = GetUrTitle(userId, urlTitle, "notebook")
+	url = GetUrTitle(userId, urlTitle, "notebook", cateId)
 	ok = db.UpdateByIdAndUserIdMap(db.Notebooks, cateId, userId, bson.M{
 		"UrlTitle": url,
 	})
@@ -935,7 +934,7 @@ func (this *BlogService) UpateBlogUrlTitle(userId string, noteId, urlTitle strin
 	ok = db.UpdateByIdAndUserIdMap(db.Notes, noteId, userId, bson.M{
 		"UrlTitle": "",
 	})
-	url = GetUrTitle(userId, urlTitle, "note")
+	url = GetUrTitle(userId, urlTitle, "note", noteId)
 	ok = db.UpdateByIdAndUserIdMap(db.Notes, noteId, userId, bson.M{
 		"UrlTitle": url,
 	})
@@ -1036,7 +1035,7 @@ func (this *BlogService) UpdateSingleUrlTitle(userId, singleId, urlTitle string)
 			"UrlTitle": "",
 		})
 	*/
-	url = GetUrTitle(userId, urlTitle, "single")
+	url = GetUrTitle(userId, urlTitle, "single", singleId)
 	ok = db.UpdateByIdAndUserIdMap(db.BlogSingles, singleId, userId, bson.M{
 		"UrlTitle": url,
 	})
@@ -1070,7 +1069,7 @@ func (this *BlogService) AddOrUpdateSingle(userId, singleId, title, content stri
 		UserId:      bson.ObjectIdHex(userId),
 		Title:       title,
 		Content:     content,
-		UrlTitle:    GetUrTitle(userId, title, "single"),
+		UrlTitle:    GetUrTitle(userId, title, "single", singleId),
 		CreatedTime: time.Now(),
 	}
 	page.UpdatedTime = page.CreatedTime
@@ -1108,6 +1107,7 @@ func (this *BlogService) SortSingles(userId string, singleIds []string) (ok bool
 
 // 得到用户的博客url
 func (this *BlogService) GetUserBlogUrl(userBlog *info.UserBlog, username string) string {
+	/*
 	if userBlog != nil {
 		if userBlog.Domain != "" && configService.AllowCustomDomain() {
 			return configService.GetUserUrl(userBlog.Domain)
@@ -1118,12 +1118,15 @@ func (this *BlogService) GetUserBlogUrl(userBlog *info.UserBlog, username string
 			username = userBlog.UserId.Hex()
 		}
 	}
+	*/
 	return configService.GetBlogUrl() + "/" + username
 }
 
 // 得到所有url
 func (this *BlogService) GetBlogUrls(userBlog *info.UserBlog, userInfo *info.User) info.BlogUrls {
 	var indexUrl, postUrl, searchUrl, cateUrl, singleUrl, tagsUrl, archiveUrl, tagPostsUrl string
+	
+	/*
 	if userBlog.Domain != "" && configService.AllowCustomDomain() { // http://demo.com
 		// ok
 		indexUrl = configService.GetUserUrl(userBlog.Domain)
@@ -1144,6 +1147,7 @@ func (this *BlogService) GetBlogUrls(userBlog *info.UserBlog, userInfo *info.Use
 		tagsUrl = indexUrl + "/tags"
 		tagPostsUrl = indexUrl + "/tag"
 	} else {
+		*/
 		// ok
 		blogUrl := configService.GetBlogUrl() // blog.leanote.com
 		userIdOrEmail := ""
@@ -1162,7 +1166,7 @@ func (this *BlogService) GetBlogUrls(userBlog *info.UserBlog, userInfo *info.Use
 		archiveUrl = blogUrl + "/archives/" + userIdOrEmail // blog.leanote.com/archive/username
 		tagsUrl = blogUrl + "/tags/" + userIdOrEmail
 		tagPostsUrl = blogUrl + "/tag/" + userIdOrEmail // blog.leanote.com/archive/username
-	}
+	// }
 
 	return info.BlogUrls{
 		IndexUrl:    indexUrl,

@@ -10,6 +10,7 @@ import (
 	"github.com/leanote/leanote/app/db"
 	. "github.com/leanote/leanote/app/lea"
 	_ "github.com/leanote/leanote/app/lea/binder"
+	"github.com/leanote/leanote/app/lea/i18n"
 	"github.com/leanote/leanote/app/lea/route"
 	"github.com/leanote/leanote/app/service"
 	"github.com/revel/revel"
@@ -38,9 +39,10 @@ func init() {
 		// session.SessionFilter,         // leanote session
 		// session.MSessionFilter,         // leanote memcache session
 
-		revel.FlashFilter,       // Restore and write the flash cookie.
-		revel.ValidationFilter,  // Restore kept validation errors and save new ones from cookie.
-		revel.I18nFilter,        // Resolve the requested language
+		revel.FlashFilter,      // Restore and write the flash cookie.
+		revel.ValidationFilter, // Restore kept validation errors and save new ones from cookie.
+		// revel.I18nFilter,        // Resolve the requested language
+		i18n.I18nFilter,         // Resolve the requested language by leanote
 		revel.InterceptorFilter, // Run interceptors around the action.
 		revel.CompressFilter,    // Compress the result.
 		revel.ActionInvoker,     // Invoke the action.
@@ -127,7 +129,7 @@ func init() {
 		if tags == nil || len(tags) == 0 {
 			return ""
 		}
-		locale, _ := renderArgs[revel.CurrentLocaleRenderArg].(string)
+		locale, _ := renderArgs[revel.CurrentLocaleViewArg].(string)
 		tagStr := ""
 		lenTags := len(tags)
 
@@ -146,7 +148,7 @@ func init() {
 			}
 
 			classes += " label-post"
-			var url = tagPostUrl + "/" + url.QueryEscape(tag)
+			var url = tagPostUrl + "/" + tag
 			tagStr += "<a class=\"" + classes + "\" href=\"" + url + "\">" + str + "</a>"
 			if i != lenTags-1 {
 				tagStr += " "
@@ -180,10 +182,18 @@ func init() {
 		return template.HTML(tagStr)
 	}
 
+	revel.TemplateFuncs["msg"] = func(renderArgs map[string]interface{}, message string, args ...interface{}) template.HTML {
+		str, ok := renderArgs[revel.CurrentLocaleViewArg].(string)
+		if !ok {
+			return ""
+		}
+		return template.HTML(i18n.Message(str, message, args...))
+	}
+
 	// 不用revel的msg
 	revel.TemplateFuncs["leaMsg"] = func(renderArgs map[string]interface{}, key string) template.HTML {
-		locale, _ := renderArgs[revel.CurrentLocaleRenderArg].(string)
-		str := revel.Message(locale, key)
+		locale, _ := renderArgs[revel.CurrentLocaleViewArg].(string)
+		str := i18n.Message(locale, key)
 		if strings.HasPrefix(str, "???") {
 			str = key
 		}
@@ -195,7 +205,7 @@ func init() {
 		if tags == nil || len(tags) == 0 {
 			return ""
 		}
-		locale, _ := renderArgs[revel.CurrentLocaleRenderArg].(string)
+		locale, _ := renderArgs[revel.CurrentLocaleViewArg].(string)
 		tagStr := ""
 		lenTags := len(tags)
 
@@ -220,7 +230,7 @@ func init() {
 				classes += " label-default"
 			}
 			classes += " label-post"
-			var url = tagPostUrl + url.QueryEscape(tag)
+			var url = tagPostUrl + tag
 			tagStr += "<a class=\"" + classes + "\" href=\"" + url + "\">" + str + "</a>"
 			if i != lenTags-1 {
 				tagStr += " "
@@ -297,7 +307,7 @@ func init() {
 
 	// http://stackoverflow.com/questions/14226416/go-lang-templates-always-quotes-a-string-and-removes-comments
 	revel.TemplateFuncs["rawMsg"] = func(renderArgs map[string]interface{}, message string, args ...interface{}) template.JS {
-		str, ok := renderArgs[revel.CurrentLocaleRenderArg].(string)
+		str, ok := renderArgs[revel.CurrentLocaleViewArg].(string)
 		if !ok {
 			return ""
 		}
@@ -392,9 +402,9 @@ func init() {
 	*/
 
 	/*
-		{{range $i := N 1 10}}
-	        <div>{{$i}}</div>
-	    {{end}}
+			{{range $i := N 1 10}}
+		        <div>{{$i}}</div>
+		    {{end}}
 	*/
 	revel.TemplateFuncs["N"] = func(start, end int) (stream chan int) {
 		stream = make(chan int)
